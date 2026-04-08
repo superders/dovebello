@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dovebello</title>
+  <meta name="description"
+    content="SPA meteo con geolocalizzazione, ricerca del sole ed evitamento della pioggia entro un raggio scelto." />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=clash-display@500,600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    :root,
+    [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+      --text-2xl: clamp(2rem, 1.2rem + 2.5vw, 3.25rem);
+      --space-1: .25rem;
+      --space-2: .5rem;
+      --space-3: .75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      --space-10: 2.5rem;
+      --space-12: 3rem;
+      --space-16: 4rem;
+      --color-bg: #f7f6f2;
+      --color-surface: #fbfbf9;
+      --color-surface-2: #f3f0ec;
+      --color-border: #d4d1ca;
+      --color-text: #28251d;
+      --color-text-muted: #67645f;
+      --color-text-faint: #9a968f;
+      --color-text-inverse: #f9f8f4;
+      --color-primary: #01696f;
+      --color-primary-hover: #0c4e54;
+      --color-primary-soft: #d9eceb;
+      --color-success: #437a22;
+      --color-warning: #d19900;
+      --color-error: #a13544;
+      --color-blue: #006494;
+      --radius-sm: .5rem;
+      --radius-md: .875rem;
+      --radius-lg: 1.25rem;
+      --radius-xl: 1.5rem;
+      --radius-full: 999px;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);
+      --shadow-md: 0 10px 30px rgba(0, 0, 0, .08);
+      --transition: 180ms cubic-bezier(.16, 1, .3, 1);
+      --font-body: 'Satoshi', Inter, sans-serif;
+      --font-display: 'Clash Display', 'Satoshi', sans-serif;
+    }
+
+    [data-theme="dark"] {
+      --color-bg: #171614;
+      --color-surface: #1d1c1a;
+      --color-surface-2: #242320;
+      --color-border: #393836;
+      --color-text: #ece8df;
+      --color-text-muted: #b7b1a7;
+      --color-text-faint: #807a73;
+      --color-text-inverse: #171614;
+      --color-primary: #57a6ad;
+      --color-primary-hover: #7ab8be;
+      --color-primary-soft: #223538;
+      --color-success: #79b75a;
+      --color-warning: #efc24d;
+      --color-error: #e47c8e;
+      --color-blue: #77add7;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, .25);
+      --shadow-md: 0 10px 32px rgba(0, 0, 0, .35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: 1.6;
+      color: var(--color-text);
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 28%),
+        var(--color-bg);
+    }
+
+    a,
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+    }
+
+    img,
+    svg {
+      display: block;
+      max-width: 100%;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(1200px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: var(--space-4) 0 var(--space-12);
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: -3rem;
+      background: var(--color-primary);
+      color: var(--color-text-inverse);
+      padding: .75rem 1rem;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      z-index: 1000;
+    }
+
+    .skip-link:focus {
+      top: 1rem;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      padding: var(--space-3) 0 var(--space-6);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .875rem;
+    }
+
+    .logo {
+      width: 44px;
+      height: 44px;
+      color: var(--color-primary);
+      padding: .5rem;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+      border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: var(--text-lg);
+      letter-spacing: -.03em;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+    }
+
+    .theme-toggle {
+      display: inline-grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: var(--space-6);
+      align-items: stretch;
+    }
+
+    .panel {
+      background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero-copy,
+    .controls,
+    .summary,
+    .results,
+    .legend {
+      padding: var(--space-6);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .45rem .75rem;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-soft);
+      color: var(--color-primary);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .hero h2 {
+      margin: var(--space-4) 0 var(--space-3);
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      line-height: 1;
+      letter-spacing: -.05em;
+      max-width: 12ch;
+    }
+
+    .hero p {
+      margin: 0 0 var(--space-5);
+      color: var(--color-text-muted);
+      max-width: 58ch;
+    }
+
+    .mini-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-3);
+      margin-top: var(--space-5);
+    }
+
+    .mini-card {
+      padding: var(--space-4);
+      background: var(--color-surface-2);
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+    }
+
+    .mini-card span {
+      display: block;
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-top: .35rem;
+      font-size: var(--text-lg);
+    }
+
+    .controls form {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: .45rem;
+      font-size: var(--text-sm);
+      font-weight: 700;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface-2);
+      color: var(--color-text);
+      padding: .95rem 1rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+
+    .btn {
+      min-height: 44px;
+      padding: .85rem 1.1rem;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      transition: transform var(--transition), background var(--transition), color var(--transition), border-color var(--transition);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: var(--color-text-inverse);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+    }
+
+    .status-line {
+      margin-top: var(--space-2);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      min-height: 1.5rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+      gap: var(--space-6);
+      margin-top: var(--space-6);
+    }
+
+    #map {
+      height: min(70vh, 720px);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+    }
+
+    .summary h3,
+    .results h3,
+    .legend h3 {
+      margin: 0 0 var(--space-3);
+      font-size: var(--text-lg);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-3);
+    }
+
+    .metric {
+      padding: var(--space-4);
+      background: var(--color-surface-2);
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--color-text-muted);
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: .35rem;
+      font-size: var(--text-lg);
+    }
+
+    .stack {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    .result-card {
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface-2);
+      border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+    }
+
+    .result-head {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-3);
+      align-items: start;
+    }
+
+    .result-card h4 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .score {
+      flex: 0 0 auto;
+      padding: .35rem .65rem;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+      color: var(--color-primary);
+    }
+
+    .result-meta,
+    .hint,
+    .legend p,
+    .result-card p {
+      margin: .5rem 0 0;
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+    }
+
+    .empty {
+      padding: var(--space-6);
+      border: 1px dashed color-mix(in srgb, var(--color-text) 16%, transparent);
+      border-radius: var(--radius-lg);
+      color: var(--color-text-muted);
+      text-align: center;
+      background: color-mix(in srgb, var(--color-surface-2) 70%, transparent);
+    }
+
+    .legend-list {
+      display: grid;
+      gap: .7rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      color: var(--color-text-muted);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .footer-note {
+      margin-top: var(--space-6);
+      padding: var(--space-4);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: var(--color-surface);
+      color: var(--color-text);
+    }
+
+    .leaflet-control-attribution {
+      font-size: 11px;
+    }
+
+    @media (max-width: 960px) {
+
+      .hero,
+      .layout,
+      .field-grid,
+      .summary-grid,
+      .mini-stats {
+        grid-template-columns: 1fr;
+      }
+
+      #map {
+        height: 52vh;
+      }
+
+      .hero h2 {
+        max-width: 14ch;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Salta al contenuto</a>
+  <div class="app">
+    <header class="topbar" aria-label="Intestazione applicazione">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 64 64" role="img" aria-label="Logo dovebello" fill="none">
+          <path
+            d="M15 37C15 25.954 23.954 17 35 17C42.1 17 48.335 20.703 51.86 26.277C47.763 23.846 42.997 22.902 38.29 23.599C29.213 24.944 22.139 32.663 21.586 41.82C21.402 44.867 21.92 47.782 22.991 50.433C18.175 46.852 15 42.03 15 37Z"
+            fill="currentColor" opacity=".28" />
+          <path d="M22 34.5C22 27.596 27.596 22 34.5 22C41.404 22 47 27.596 47 34.5C47 41.404 41.404 47 34.5 47H22.5"
+            stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+          <path d="M17 47.5H45" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+        </svg>
+        <div>
+          <h1>dovebello</h1>
+          <p>Trova il sole vicino a te, oppure evita la pioggia.</p>
+        </div>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Attiva modalità scura">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <article class="panel hero-copy">
+          <span class="eyebrow">meteo locale + ricerca nel raggio</span>
+          <h2>Dove andare quando vicino a te il tempo non convince.</h2>
+          <p>dovebello usa la tua posizione GPS, controlla il meteo attuale e confronta punti entro un raggio scelto per
+            suggerirti dove incontrare il sole o ridurre la probabilità di pioggia.</p>
+          <div class="mini-stats" aria-label="Caratteristiche principali">
+            <div class="mini-card"><span>Posizione</span><strong>GPS browser</strong></div>
+            <div class="mini-card"><span>Copertura</span><strong>Entro km scelti</strong></div>
+            <div class="mini-card"><span>Vista</span><strong>Mappa interattiva</strong></div>
+          </div>
+        </article>
+
+        <aside class="panel controls">
+          <form id="weatherForm">
+            <div class="field-grid">
+              <div class="field">
+                <label for="radiusKm">Raggio massimo</label>
+                <input id="radiusKm" name="radiusKm" type="number" min="5" max="150" step="5" value="30" />
+              </div>
+              <div class="field">
+                <label for="mode">Obiettivo</label>
+                <select id="mode" name="mode">
+                  <option value="sun">Cerco il sole</option>
+                  <option value="dry">Evito la pioggia</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-grid">
+              <div class="field">
+                <label for="sampleCount">Punti da analizzare</label>
+                <select id="sampleCount" name="sampleCount">
+                  <option value="12">12 punti</option>
+                  <option value="18" selected>18 punti</option>
+                  <option value="24">24 punti</option>
+                  <option value="30">30 punti</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="hoursAhead">Orizzonte previsione</label>
+                <select id="hoursAhead" name="hoursAhead">
+                  <option value="3">Prossime 3 ore</option>
+                  <option value="6" selected>Prossime 6 ore</option>
+                  <option value="12">Prossime 12 ore</option>
+                  <option value="24">Oggi</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-primary" type="button" id="locateBtn">Usa la mia posizione</button>
+              <button class="btn btn-secondary" type="submit">Aggiorna analisi</button>
+            </div>
+            <div class="status-line" id="statusLine" aria-live="polite">Pronto. Concedi la geolocalizzazione per
+              iniziare.</div>
+          </form>
+        </aside>
+      </section>
+
+      <section class="layout" aria-label="Mappa e risultati">
+        <div class="panel" style="padding: var(--space-3);">
+          <div id="map" role="application" aria-label="Mappa con la tua posizione e i punti meteo consigliati"></div>
+        </div>
+
+        <div class="stack">
+          <section class="panel summary" aria-labelledby="summaryTitle">
+            <h3 id="summaryTitle">Situazione attuale</h3>
+            <div class="summary-grid" id="summaryGrid">
+              <div class="metric"><span>Posizione</span><strong>In attesa</strong></div>
+              <div class="metric"><span>Meteo ora</span><strong>—</strong></div>
+              <div class="metric"><span>Temperatura</span><strong>—</strong></div>
+              <div class="metric"><span>Pioggia</span><strong>—</strong></div>
+            </div>
+            <p class="hint" id="summaryHint">L'app mostrerà qui un riepilogo meteo per la tua posizione appena
+              disponibile.</p>
+          </section>
+
+          <section class="panel results" aria-labelledby="resultsTitle">
+            <h3 id="resultsTitle">Dove conviene andare</h3>
+            <div id="resultsList" class="stack">
+              <div class="empty">Nessuna analisi ancora eseguita.</div>
+            </div>
+          </section>
+
+          <section class="panel legend" aria-labelledby="legendTitle">
+            <h3 id="legendTitle">Legenda mappa</h3>
+            <ul class="legend-list">
+              <li class="legend-item"><span class="dot" style="background:#0b84ff"></span>Tu sei qui</li>
+              <li class="legend-item"><span class="dot" style="background:#f4b400"></span>Punti consigliati per sole
+              </li>
+              <li class="legend-item"><span class="dot" style="background:#34a853"></span>Punti consigliati per tempo
+                più asciutto</li>
+              <li class="legend-item"><span class="dot" style="background:#d93025"></span>Punti sfavorevoli</li>
+            </ul>
+            <p>Per semplicità questa versione usa OpenStreetMap come base mappa e Open-Meteo come sorgente forecast. Per
+              GitHub Pages basta pubblicare questo file come pagina statica.</p>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div class="footer-note">Suggerimento: su GitHub Pages la geolocalizzazione funziona correttamente perché il sito
+      viene servito via HTTPS.</div>
+  </div>
+
+  <script>
+    const state = {
+      map: null,
+      userMarker: null,
+      accuracyCircle: null,
+      sampleMarkers: [],
+      userCoords: null,
+      lastAnalysis: null,
+      theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    };
+
+    const statusLine = document.getElementById('statusLine');
+    const summaryGrid = document.getElementById('summaryGrid');
+    const summaryHint = document.getElementById('summaryHint');
+    const resultsList = document.getElementById('resultsList');
+    const form = document.getElementById('weatherForm');
+    const locateBtn = document.getElementById('locateBtn');
+    const themeToggle = document.getElementById('themeToggle');
+
+    const weatherDescriptions = {
+      0: 'Sereno', 1: 'Quasi sereno', 2: 'Parzialmente nuvoloso', 3: 'Coperto',
+      45: 'Nebbia', 48: 'Nebbia con brina', 51: 'Pioviggine debole', 53: 'Pioviggine', 55: 'Pioviggine intensa',
+      56: 'Pioggia gelata debole', 57: 'Pioggia gelata intensa', 61: 'Pioggia debole', 63: 'Pioggia', 65: 'Pioggia intensa',
+      66: 'Pioggia gelata', 67: 'Pioggia gelata intensa', 71: 'Neve debole', 73: 'Neve', 75: 'Neve intensa',
+      77: 'Granuli di neve', 80: 'Rovesci deboli', 81: 'Rovesci', 82: 'Rovesci forti', 85: 'Rovesci di neve',
+      86: 'Rovesci di neve forti', 95: 'Temporale', 96: 'Temporale con grandine', 99: 'Temporale forte con grandine'
+    };
+
+    function setTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Attiva modalità chiara' : 'Attiva modalità scura');
+      themeToggle.innerHTML = theme === 'dark'
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    }
+
+    function initMap() {
+      setTheme(state.theme);
+      state.map = L.map('map', { zoomControl: true }).setView([45.1847, 9.1582], 10);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+      }).addTo(state.map);
+    }
+
+    function setStatus(message) {
+      statusLine.textContent = message;
+    }
+
+    function toRadians(deg) { return deg * Math.PI / 180; }
+    function toDegrees(rad) { return rad * 180 / Math.PI; }
+
+    function destinationPoint(lat, lon, distanceKm, bearingDeg) {
+      const R = 6371;
+      const brng = toRadians(bearingDeg);
+      const lat1 = toRadians(lat);
+      const lon1 = toRadians(lon);
+      const angDist = distanceKm / R;
+      const lat2 = Math.asin(Math.sin(lat1) * Math.cos(angDist) + Math.cos(lat1) * Math.sin(angDist) * Math.cos(brng));
+      const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(angDist) * Math.cos(lat1), Math.cos(angDist) - Math.sin(lat1) * Math.sin(lat2));
+      return { lat: toDegrees(lat2), lon: toDegrees(lon2) };
+    }
+
+    function haversineKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = toRadians(lat2 - lat1);
+      const dLon = toRadians(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    function bearingToCompass(bearing) {
+      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+      return dirs[Math.round((((bearing % 360) + 360) % 360) / 45) % 8];
+    }
+
+    function formatTemp(v) { return `${Math.round(v)}°C`; }
+    function formatProb(v) { return `${Math.round(v ?? 0)}%`; }
+
+    function describeWeather(code) {
+      return weatherDescriptions[code] || 'Condizioni variabili';
+    }
+
+    function isSunny(code) {
+      return [0, 1].includes(code);
+    }
+
+    function isRainy(code) {
+      return [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code);
+    }
+
+    function computeScore(hourlySlice, mode) {
+      let score = 0;
+      for (let i = 0; i < hourlySlice.length; i++) {
+        const h = hourlySlice[i];
+        const sunnyBonus = isSunny(h.weatherCode) ? 28 : h.weatherCode === 2 ? 16 : h.weatherCode === 3 ? 5 : 0;
+        const rainPenalty = (h.precipProb || 0) * 0.55 + (h.precip || 0) * 18 + (isRainy(h.weatherCode) ? 24 : 0);
+        if (mode === 'sun') {
+          score += sunnyBonus - rainPenalty;
+        } else {
+          score += 24 - rainPenalty + (isSunny(h.weatherCode) ? 8 : 0);
+        }
+      }
+      return Math.round(score / Math.max(hourlySlice.length, 1));
+    }
+
+    function pointColor(point, mode) {
+      if (point.rank <= 3) return mode === 'sun' ? '#f4b400' : '#34a853';
+      if (point.score < 0) return '#d93025';
+      return '#f2994a';
+    }
+
+    function createSamplePoints(lat, lon, radiusKm, sampleCount) {
+      const points = [{ lat, lon, isUser: true, label: 'Tu sei qui', distanceKm: 0, bearing: 0 }];
+      const rings = radiusKm <= 20 ? [radiusKm * 0.55, radiusKm] : [radiusKm * 0.4, radiusKm * 0.75, radiusKm];
+      let remaining = sampleCount;
+      rings.forEach((ringKm, ringIndex) => {
+        const pointsInRing = ringIndex === rings.length - 1 ? remaining : Math.max(4, Math.round(sampleCount / rings.length));
+        remaining -= pointsInRing;
+        for (let i = 0; i < pointsInRing; i++) {
+          const bearing = (360 / pointsInRing) * i + (ringIndex * 11);
+          const p = destinationPoint(lat, lon, ringKm, bearing);
+          points.push({ lat: p.lat, lon: p.lon, distanceKm: ringKm, bearing, label: `Punto ${points.length}` });
+        }
+      });
+      return points;
+    }
+
+    async function fetchForecastForPoints(points) {
+      const latitudes = points.map(p => p.lat.toFixed(4)).join(',');
+      const longitudes = points.map(p => p.lon.toFixed(4)).join(',');
+      const params = new URLSearchParams({
+        latitude: latitudes,
+        longitude: longitudes,
+        current: 'temperature_2m,weather_code,precipitation,precipitation_probability',
+        hourly: 'temperature_2m,weather_code,precipitation,precipitation_probability',
+        timezone: 'auto',
+        forecast_days: '2'
+      });
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+      if (!res.ok) throw new Error('Errore nel recupero dei dati meteo.');
+      const data = await res.json();
+      return Array.isArray(data) ? data : [data];
+    }
+
+    function extractHourlySlice(apiPoint, hoursAhead) {
+      const nowIso = apiPoint.current?.time;
+      const times = apiPoint.hourly?.time || [];
+      const startIndex = Math.max(0, times.indexOf(nowIso));
+      const endIndex = Math.min(times.length, startIndex + Number(hoursAhead));
+      const slice = [];
+      for (let i = startIndex; i < endIndex; i++) {
+        slice.push({
+          time: times[i],
+          weatherCode: apiPoint.hourly.weather_code[i],
+          precip: apiPoint.hourly.precipitation[i],
+          precipProb: apiPoint.hourly.precipitation_probability?.[i] ?? 0,
+          temp: apiPoint.hourly.temperature_2m[i]
+        });
+      }
+      return slice;
+    }
+
+    function updateSummary(userPoint, currentForecast, mode) {
+      summaryGrid.innerHTML = `
+        <div class="metric"><span>Posizione</span><strong>${userPoint.lat.toFixed(4)}, ${userPoint.lon.toFixed(4)}</strong></div>
+        <div class="metric"><span>Meteo ora</span><strong>${describeWeather(currentForecast.current.weather_code)}</strong></div>
+        <div class="metric"><span>Temperatura</span><strong>${formatTemp(currentForecast.current.temperature_2m)}</strong></div>
+        <div class="metric"><span>Prob. pioggia</span><strong>${formatProb(currentForecast.current.precipitation_probability ?? 0)}</strong></div>
+      `;
+      summaryHint.textContent = mode === 'sun'
+        ? 'L’algoritmo privilegia punti con cielo sereno o poco nuvoloso e penalizza pioggia e rovesci.'
+        : 'L’algoritmo privilegia i punti con probabilità di precipitazione più bassa nelle prossime ore.';
+    }
+
+    function clearSampleMarkers() {
+      state.sampleMarkers.forEach(m => m.remove());
+      state.sampleMarkers = [];
+    }
+
+    function updateMap(userPoint, accuracy, rankedPoints, mode) {
+      if (!state.map) initMap();
+      clearSampleMarkers();
+
+      if (state.userMarker) state.userMarker.remove();
+      if (state.accuracyCircle) state.accuracyCircle.remove();
+
+      state.userMarker = L.circleMarker([userPoint.lat, userPoint.lon], {
+        radius: 8, weight: 3, color: '#0b84ff', fillColor: '#0b84ff', fillOpacity: .5
+      }).addTo(state.map).bindPopup('<strong>Tu sei qui</strong>');
+
+      if (accuracy) {
+        state.accuracyCircle = L.circle([userPoint.lat, userPoint.lon], {
+          radius: accuracy, color: '#0b84ff', weight: 1, fillOpacity: .08
+        }).addTo(state.map);
+      }
+
+      rankedPoints.forEach(point => {
+        const marker = L.circleMarker([point.lat, point.lon], {
+          radius: point.rank <= 3 ? 7 : 5,
+          weight: 2,
+          color: pointColor(point, mode),
+          fillColor: pointColor(point, mode),
+          fillOpacity: .45
+        }).addTo(state.map);
+        marker.bindPopup(`
+          <strong>${point.rankLabel}</strong><br>
+          ${point.description}<br>
+          Distanza: ${point.distanceKm.toFixed(1)} km · Direzione: ${point.direction}<br>
+          Meteo: ${point.weatherLabel}<br>
+          Pioggia: ${formatProb(point.avgPrecipProb)}
+        `);
+        state.sampleMarkers.push(marker);
+      });
+
+      const bounds = L.latLngBounds([[userPoint.lat, userPoint.lon]]);
+      rankedPoints.forEach(p => bounds.extend([p.lat, p.lon]));
+      state.map.fitBounds(bounds.pad(0.22));
+    }
+
+    function renderResults(rankedPoints, mode, hoursAhead) {
+      if (!rankedPoints.length) {
+        resultsList.innerHTML = '<div class="empty">Nessun punto analizzato.</div>';
+        return;
+      }
+      resultsList.innerHTML = rankedPoints.slice(0, 5).map(point => `
+        <article class="result-card">
+          <div class="result-head">
+            <div>
+              <h4>${point.rankLabel}</h4>
+              <p class="result-meta">${point.distanceKm.toFixed(1)} km verso ${point.direction}</p>
+            </div>
+            <span class="score">score ${point.score}</span>
+          </div>
+          <p>${point.description}</p>
+          <p class="result-meta">Condizioni prevalenti nelle prossime ${hoursAhead} ore: ${point.weatherLabel}, temperatura media ${formatTemp(point.avgTemp)}, pioggia media ${formatProb(point.avgPrecipProb)}.</p>
+        </article>
+      `).join('');
+    }
+
+    async function runAnalysis() {
+      if (!state.userCoords) {
+        setStatus('Prima devi autorizzare la posizione GPS.');
+        return;
+      }
+
+      const radiusKm = Math.max(5, Math.min(150, Number(document.getElementById('radiusKm').value) || 30));
+      const sampleCount = Math.max(8, Math.min(30, Number(document.getElementById('sampleCount').value) || 18));
+      const mode = document.getElementById('mode').value;
+      const hoursAhead = Math.max(1, Math.min(24, Number(document.getElementById('hoursAhead').value) || 6));
+
+      try {
+        setStatus('Analisi in corso: sto confrontando i punti vicini...');
+        const points = createSamplePoints(state.userCoords.lat, state.userCoords.lon, radiusKm, sampleCount);
+        const forecasts = await fetchForecastForPoints(points);
+        const analyses = forecasts.map((forecast, index) => {
+          const point = points[index];
+          const hourlySlice = extractHourlySlice(forecast, hoursAhead);
+          const avgPrecipProb = hourlySlice.reduce((a, h) => a + (h.precipProb || 0), 0) / Math.max(hourlySlice.length, 1);
+          const avgTemp = hourlySlice.reduce((a, h) => a + h.temp, 0) / Math.max(hourlySlice.length, 1);
+          const dominantCode = hourlySlice.sort((a, b) => a.weatherCode - b.weatherCode)[0]?.weatherCode ?? forecast.current.weather_code;
+          return {
+            ...point,
+            score: computeScore(hourlySlice, mode),
+            avgPrecipProb,
+            avgTemp,
+            weatherLabel: describeWeather(dominantCode),
+            currentCode: forecast.current.weather_code,
+            currentForecast: forecast,
+            hourlySlice
+          };
+        });
+
+        const userAnalysis = analyses[0];
+        const ranked = analyses.slice(1)
+          .map(item => ({
+            ...item,
+            distanceKm: haversineKm(state.userCoords.lat, state.userCoords.lon, item.lat, item.lon),
+            direction: bearingToCompass(item.bearing),
+            description: mode === 'sun'
+              ? (item.score > 10 ? 'Qui hai buone chance di trovare aperture o sole rispetto alla tua posizione attuale.' : 'Qui il meteo è discreto, ma senza un vantaggio netto.')
+              : (item.score > 8 ? 'Qui il rischio pioggia è più basso rispetto alla tua posizione attuale.' : 'Qui il vantaggio sul fronte pioggia è limitato.')
+          }))
+          .sort((a, b) => b.score - a.score)
+          .map((item, idx) => ({ ...item, rank: idx + 1, rankLabel: idx === 0 ? 'Miglior opzione' : `Alternativa ${idx + 1}` }));
+
+        updateSummary(state.userCoords, userAnalysis.currentForecast, mode);
+        renderResults(ranked, mode, hoursAhead);
+        updateMap(state.userCoords, state.userCoords.accuracy, ranked, mode);
+
+        const best = ranked[0];
+        setStatus(best
+          ? `${mode === 'sun' ? 'Miglior zona per cercare sole' : 'Zona più asciutta trovata'}: ${best.distanceKm.toFixed(1)} km verso ${best.direction}.`
+          : 'Analisi completata, ma non ho trovato punti utili.');
+
+        state.lastAnalysis = { ranked, mode, hoursAhead };
+      } catch (error) {
+        console.error(error);
+        setStatus('Non sono riuscito a recuperare i dati meteo. Riprova tra poco.');
+      }
+    }
+
+    function requestLocation() {
+      if (!('geolocation' in navigator)) {
+        setStatus('Il browser non supporta la geolocalizzazione.');
+        return;
+      }
+
+      setStatus('Sto cercando la tua posizione...');
+
+      const savePosition = (position, precisionLabel = 'precisa') => {
+        state.userCoords = {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        };
+
+        setStatus(`Posizione ${precisionLabel} trovata. Ora avvio l’analisi.`);
+        runAnalysis();
+      };
+
+      const handleFinalError = (error) => {
+        const messages = {
+          1: 'Permesso posizione negato.',
+          2: 'Posizione non disponibile.',
+          3: 'Tempo scaduto anche nel secondo tentativo.'
+        };
+
+        setStatus(messages[error.code] || 'Impossibile recuperare la posizione.');
+      };
+
+      const fallbackLowAccuracy = () => {
+        setStatus('Non riesco a ottenere una posizione precisa. Provo una posizione approssimata...');
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => savePosition(position, 'approssimata'),
+          handleFinalError,
+          {
+            enableHighAccuracy: false,
+            timeout: 20000,
+            maximumAge: 300000
+          }
+        );
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => savePosition(position, 'precisa'),
+        (error) => {
+          if (error.code === 3) {
+            fallbackLowAccuracy();
+            return;
+          }
+
+          if (error.code === 1) {
+            setStatus('Permesso posizione negato.');
+            return;
+          }
+
+          if (error.code === 2) {
+            setStatus('Posizione non disponibile. Provo una posizione approssimata...');
+            fallbackLowAccuracy();
+            return;
+          }
+
+          setStatus('Impossibile recuperare la posizione.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      );
+    }
+    themeToggle.addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
+    locateBtn.addEventListener('click', requestLocation);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      runAnalysis();
+    });
+
+    initMap();
+  </script>
+</body>
+
+</html>
